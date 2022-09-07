@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<title>Whatsapp Clone &#x1F4DE;</title>
+	<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="main">
+	<div class="aside">
+		<div class="ListChat" id="listChat"></div>
+		<div id="empty" class="Empty">
+			<img width="125" src="img/only.png" alt="Lista Vacia">
+			<h3>Eres la única persona del chat</h3>
+		</div>
+	</div>
+
+	<div class="frame">
+		<div class="welcomeFrame">
+			<img src="img/welcome.jpg" alt=".">
+			<h2>Whatsapp Clone &#x1F4DE; by Julio Garcia</h2>
+			<p>Seleciona un usuario de la izquierda para chatear</p>
+		</div>
+		<div class="windowChat">
+			<div class="topHead">
+				<h3>Chateando con <span id="people"></span></h3>
+			</div>
+			<div class="frameChat" id="frameChat"></div>
+			<div class="boxInput">
+				<input type="text" maxlength="500" autofocus="on" autocomplete="off" id="inputText" placeholder="Escribe un mensaje aquí...">
+				<button id="btnSend">➤</button>
+			</div>
+		</div>
+	</div>	
+</div>
+
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+
+// * TODO: - Funcion para identicar el nombre repetido
+// * TODO: - Cerrar el chat cuando se desconecta el usuario
+// * TODO: - La ventana cambia cuando se envia un mensaje
+
+
+if(!window.location.hash){
+	if(document.height < window.outerHeight + 10){
+		document.body.style.height = (window.outerHeight + 50) + 'px';
+	}
+	
+	setTimeout(function(){
+		window.scrollTo(0, 1);
+	}, 50);
+}
+
+	const socket = io();
+	var username = prompt("Ingresa tu nombre:");
+	var addressee;
+	var myId;
+	let randomImg = 2;
+	const buttonSend = document.querySelector('#btnSend');
+	const inputText = document.querySelector('#inputText');
+	const frameChat = document.querySelector('#frameChat');
+	const listChat = document.querySelector('#listChat');
+	const welcomeFrame = document.querySelector('.welcomeFrame');
+	const windowChat = document.querySelector('.windowChat');
+	const people = document.querySelector('#people');
+	const emptyList = document.querySelector('#empty');
+	if(username) socket.emit('chat:join',username);
+
+	function getHour(){
+		let today = new Date();
+		let hours = today.getHours();
+		let minutes = today.getMinutes();
+		let extend = hours >= 12 ? 'p. m.' : 'a. m.';
+		hours = hours >= 12 ? (hours-12) : hours;
+		return `${hours}:${minutes} ${extend}`;
+	}
+
+	socket.on('chat:join', (id) => myId = id);
+	socket.on('chat:privateMessage', ({message,id,from,from_id}) => {
+
+		if(addressee != from_id) frameChat.innerHTML = "";
+
+		let hour = getHour();
+		people.innerHTML = from;
+		addressee = from_id;
+		welcomeFrame.style.display = "none";
+		windowChat.style.display = "grid";
+		frameChat.innerHTML += `
+		<div class="message message_to">
+			<p>${message}</p>
+			<span>${hour}</span>
+		</div>`;
+	})
+
+
+	function ChatWith(username,id){
+		people.innerHTML = username;
+		addressee = id;
+		welcomeFrame.style.display = "none";
+		windowChat.style.display = "grid";
+		frameChat.innerHTML = "";
+	}
+
+	socket.on('chat:listUsers', (usersOnline) =>{
+		listChat.innerHTML = "";
+
+		if (usersOnline.length > 1){
+			emptyList.style.display = "none";
+		}else{
+			welcomeFrame.style.display = "flex";
+			windowChat.style.display = "none";
+			emptyList.style.display = "flex";
+		}
+
+		usersOnline.map((e)=>{
+			if(e.username != username){
+				listChat.innerHTML += `
+				<div class="BoxChat" onclick="ChatWith('${e.username}','${e.socket}')">
+					<img src="https://i.pravatar.cc/100?img=${randomImg}" alt=".">
+					<h3>${e.username}</h3>
+				</div>`;
+				randomImg++;
+			}
+		})
+	})
+
+
+	buttonSend.addEventListener( 'click',() => {
+		let message = inputText.value;
+		let hour = getHour();
+		
+		if(message){
+			frameChat.innerHTML += `
+			<div class="message message_from">
+				<p>${message}</p>
+				<span>${hour} <div class="check-view">✓✓</div></span>
+			</div>`;
+			
+			const data = {
+				from: username,
+				from_id: myId,
+				id: addressee,
+				message: message
+			}
+
+			socket.emit('chat:privateMessage',data);
+			inputText.value = "";
+		}
+
+	});
+
+</script>
+</body>
+</html>
